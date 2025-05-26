@@ -47,6 +47,23 @@ Electric Utility - The electric company servicing that area.
 
 2020 Census Tract - Census tract identifier from the 2020 census (used for demographic/geographic analysis).
 
+Questions:
+- Vehicles per state
+- Vehicles per county
+- Vehicles per city
+- Vehicles per legistrative district (handle na values)
+- Vehicles per electric utility
+- Top 7 companies with total amount of vehicles
+- Top 7 models with total amount of vehicles
+- Popular companies in each county
+- Popular models in each county
+- Electric Range per model (handle na values)
+
+handle missing values: use Linear Regression/KNN to predict electric range,
+
+split categories and turn them to binary values
+dummies for Electric Utility and handle
+
 # Installs
 
 # Libraries
@@ -76,5 +93,15 @@ df.info()
 
 df.describe()
 
-print(f"{df.isna().any(axis=1).sum()} rows")
-display(df[df.isna().any(axis=1)])
+df = df.drop(columns=["Base MSRP", "Vehicle Location", "DOL Vehicle ID", "2020 Census Tract"])
+
+#print(f"{df.isna().any(axis=1).sum()} rows")
+display(df[df["County"].isna()])
+df = df.dropna(subset=["County"])
+df.loc[df["Electric Range"] == 0.0, "Electric Range"] = np.nan
+display(df.isnull().sum())
+df.head(3)
+
+df['Make'].value_counts()
+
+df[['Make','Model']].value_counts()
