@@ -7,6 +7,38 @@ Original file is located at
     https://colab.research.google.com/drive/1IZluGjST-g406fcuba5vIkrgK7rjw2uS
 
 # About
+Authors: Shahar and Shlomi
+
+[Github](https://github.com/shachar700/DataAnalysis_ElectricVehicles)
+
+Questions:
+
+Shahar
+- Top 7 companies with total amount of vehicles
+- Top 7 models with total amount of vehicles
+- Popular companies in each county
+- Popular models in each county
+
+Shlomi
+- Vehicles per state
+- Vehicles per county
+- Vehicles per city
+- Vehicles per electric utility
+
+Later
+- Vehicles per legistrative district (handle na values) **
+- Electric Range per model (handle na values) **
+- graph Make and electric range
+
+# Comments
+* turn dtype to categories where needed
+
+* handle missing values: use Linear Regression/KNN to predict electric range,
+
+* split categories and turn them to binary values.
+dummies for Electric Utility and handle
+higher index to dummies
+
 authors: Shahar and Shlomi
 
 [Github](https://github.com/shachar700/DataAnalysis_ElectricVehicles)
@@ -47,23 +79,6 @@ Electric Utility - The electric company servicing that area.
 
 2020 Census Tract - Census tract identifier from the 2020 census (used for demographic/geographic analysis).
 
-Questions:
-- Vehicles per state
-- Vehicles per county
-- Vehicles per city
-- Vehicles per legistrative district (handle na values)
-- Vehicles per electric utility
-- Top 7 companies with total amount of vehicles
-- Top 7 models with total amount of vehicles
-- Popular companies in each county
-- Popular models in each county
-- Electric Range per model (handle na values)
-
-handle missing values: use Linear Regression/KNN to predict electric range,
-
-split categories and turn them to binary values
-dummies for Electric Utility and handle
-
 # Installs
 
 # Libraries
@@ -72,6 +87,8 @@ dummies for Electric Utility and handle
 import requests
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 """# Pre-process"""
 
@@ -84,24 +101,486 @@ def download_file(url, file_name):
         file.write(response.content)
     print(f"Downloaded: {file_name}")
 
-download_file(electric_vehicles_url, "electric_vehicles.csv")
+download_file(electric_vehicles_url, "Electric_Vehicle_Population_Data.csv")
 
-df = pd.read_csv("/content/electric_vehicles.csv")
+df = pd.read_csv("/content/Electric_Vehicle_Population_Data.csv")
 df.head(5)
 
 df.info()
 
 df.describe()
 
-df = df.drop(columns=["Base MSRP", "Vehicle Location", "DOL Vehicle ID", "2020 Census Tract"])
-
-#print(f"{df.isna().any(axis=1).sum()} rows")
-display(df[df["County"].isna()])
-df = df.dropna(subset=["County"])
-df.loc[df["Electric Range"] == 0.0, "Electric Range"] = np.nan
-display(df.isnull().sum())
+dummies = df["Electric Utility"].str.get_dummies("|")
+# print(dummies.columns.tolist())
+# df = pd.concat([df, dummies], axis=1)
+dummies.head(3)
+display(dummies.sum().sort_values())
 df.head(3)
 
-df['Make'].value_counts()
+display(df.isnull().sum())
 
-df[['Make','Model']].value_counts()
+# df['Make'].value_counts()
+
+# df[['Make','Model']].value_counts()
+
+"""## drop unused columns"""
+
+df = df.drop(columns=["Base MSRP", "Vehicle Location", "DOL Vehicle ID", "2020 Census Tract"])
+
+"""## Handle missing data"""
+
+display(df[df["County"].isna()])
+df = df.dropna(subset=["County"])
+
+"""# Vehicles per state
+Conclusion: as most of the data was collected in WA the df shows they have the most vehicles (235198!), and followed by CA (but with only 112 vehicles)
+Thus we can conclude that any vehicle not in WA is an outlier
+"""
+
+vehicles_per_state = df.groupby(by="State").size().reset_index(name="Count")
+
+vehicles_per_state = vehicles_per_state.sort_values("Count", ascending=False).head(10)
+
+plt.figure(figsize=(10, 12))
+sns.barplot(x="Count", y="State", data=vehicles_per_state, palette="Blues_d")
+
+plt.title("Vehicle Count per State (top 10)")
+plt.xlabel("Number of Vehicles")
+plt.ylabel("State")
+plt.tight_layout()
+plt.show()
+
+vehicles_per_state = df.groupby(by="State").size().reset_index(name="Count")
+vehicles_per_state = vehicles_per_state.sort_values("Count", ascending=False)
+vehicles_per_state.loc[vehicles_per_state["State"] == "WA", "Count"] = 150
+
+plt.figure(figsize=(10, 12))
+sns.barplot(x="Count", y="State", data=vehicles_per_state, palette="Blues_d")
+
+plt.title("Vehicle Count per State (trimmed [WA=150+])")
+plt.xlabel("Number of Vehicles")
+plt.ylabel("State")
+plt.tight_layout()
+plt.show()
+
+vehicles_per_state = df.groupby(by="State").size().reset_index(name="Count")
+vehicles_per_state = vehicles_per_state.sort_values("Count", ascending=False).head(20)
+
+# Set the index to "State" so pie chart labels use it
+vehicles_per_state.set_index("State")["Count"].plot.pie(
+    autopct='%1.1f%%',
+    figsize=(8, 8),
+    title="Vehicles per State (top 20 states)",
+    legend=True
+)
+
+plt.tight_layout()
+plt.show()
+
+"""# Vehicles per WA county
+
+Conclusion: King county has the most (118711) by a large margin, followed by Snohomish
+Thus we can conclude that any vehicle not in King county is an outlier
+"""
+
+filtered_df = df[ df["State"] == 'WA']
+
+vehicles_per_county = df.groupby(by="County").size().reset_index(name="Count")
+vehicles_per_county = vehicles_per_county.sort_values("Count", ascending=False)
+vehicles_per_county = vehicles_per_county.head(n=20)
+
+display(vehicles_per_county)
+maxVal = 35000
+
+plt.figure(figsize=(14, 6))
+sns.barplot(data=vehicles_per_county, x='Count', y='County', palette='YlOrRd')
+plt.xlabel('Number of Vehicles')
+plt.ylabel('County')
+plt.title(f'Vehicle Count by County in WA (trimmed - max {maxVal})')
+plt.xlim(0, maxVal)
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(14, 6))
+sns.barplot(data=vehicles_per_county, x='Count', y='County', palette='YlOrRd')
+plt.xlabel('Number of Vehicles')
+plt.ylabel('County')
+plt.title(f'Vehicle Count by County in WA (true)')
+plt.tight_layout()
+plt.show()
+
+filtered_df = df[ df["State"] == 'WA']
+vehicles_per_county = filtered_df.groupby(by="County").size().reset_index(name="Count")
+vehicles_per_county = vehicles_per_county.sort_values("Count", ascending=False).head(10)
+
+# Set the index to "State" so pie chart labels use it
+vehicles_per_county.set_index("County")["Count"].plot.pie(
+    autopct='%1.1f%%',
+    figsize=(8, 8),
+    title="Vehicles per County (top 10 counties)",
+    legend=True
+)
+
+plt.tight_layout()
+plt.show()
+
+filtered_df = df[ df["State"] == 'WA']
+vehicles_per_county = filtered_df.groupby(by="County").size().reset_index(name="Count")
+vehicles_per_county = vehicles_per_county.sort_values("Count", ascending=False)
+
+# Set the index to "State" so pie chart labels use it
+vehicles_per_county.set_index("County")["Count"].plot.pie(
+    autopct='%1.1f%%',
+    figsize=(8, 8),
+    title="Vehicles per County (all counties)",
+    legend=True
+)
+
+plt.tight_layout()
+plt.show()
+
+"""# Removing outliers"""
+
+filtered_df = df[ (df["State"] == 'WA') | (df["County"] == 'King')]
+# filtered_df["City"] = filtered_df["City"].astype("category")
+# filtered_df["Make"] = filtered_df["Make"].astype("category")
+# filtered_df["Model"] = filtered_df["Model"].astype("category")
+
+"""# Most popular vehicle per city
+Conclusion: Tesla is the most popular in the top 20 cities with the most vehicles
+"""
+
+def vehicles_per_feature(feature):
+  make_df = filtered_df.pivot_table(
+    index=feature,
+    columns="Make",
+    values="Model",
+    aggfunc="count",
+    fill_value=0
+  )
+
+  # only the top 5 makers
+  top_makes = make_df.sum(axis=0).nlargest(5).index
+  make_df_top_makes = make_df.loc[:, top_makes]
+  # only the top 20 of that feature
+  top_20 = make_df_top_makes.sum(axis=1).nlargest(20).index
+  make_df_top20 = make_df_top_makes.loc[top_20]
+
+  make_df_filtered_pcts = make_df_top20.div(make_df_top20.sum(axis="columns"), axis="index")
+  # display(make_df_filtered_pcts)
+  make_df_filtered_pcts.plot.bar(stacked=True)
+
+vehicles_per_feature("City")
+
+"""# Vehicles per electric utility
+Conclusion: We see that 'Puget Sound Energy Inc' is the utility that service the most vehicles, followed closly by 'City of Tacoma'
+"""
+
+utilities_df = filtered_df['Electric Utility'].str.split(r'\|+', regex=True).explode()
+utility_counts = utilities_df.value_counts().head(10)
+display(utility_counts)
+
+plt.figure(figsize=(10, 6))
+utility_counts.plot(kind='bar')
+plt.title('Electric Utility Counts')
+plt.xlabel('Electric Utility')
+plt.ylabel('Frequency')
+plt.xticks(rotation=45, ha='right')
+plt.tight_layout()
+plt.show()
+
+"""# Vehicles per Electric Vehicle Type
+Conclusion: ~80% of vehicles are Battery Electric Vehicle.
+1 out of 5 vehicles is Plug-in Hybrid Vehicle
+"""
+
+counts = filtered_df['Electric Vehicle Type'].value_counts()
+
+# Plot a stacked bar chart (single bar)
+plt.figure(figsize=(6, 4))
+plt.bar(['EV Count'], [counts.get('Battery Electric Vehicle (BEV)', 0)], label='BEV')
+plt.bar(['EV Count'], [counts.get('Plug-in Hybrid Electric Vehicle (PHEV)', 0)], bottom=[counts.get('Battery Electric Vehicle (BEV)', 0)], label='PHEV')
+
+# Add labels and legend
+plt.title('Count of EV Types')
+plt.ylabel('Number of Vehicles')
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+plt.pie(counts, labels=counts.index, autopct='%1.1f%%', startangle=140)
+plt.title('Count of EV Types')
+plt.axis('equal')
+plt.tight_layout()
+plt.show()
+
+"""# Models per Make (top 3 make)"""
+
+models_per_make = df.groupby(["Make","Model"], dropna=False).size()
+
+models_per_make = models_per_make.reset_index(name='Count')
+
+top_makes = (
+    models_per_make.groupby('Make')['Count']
+    .sum()
+    .sort_values(ascending=False)
+    .head(3)
+    .index
+)
+
+for make in top_makes:
+    make_data = models_per_make[models_per_make['Make'] == make]
+    plt.figure(figsize=(6, 6))
+    plt.pie(make_data['Count'], labels=make_data['Model'], autopct='%1.1f%%', startangle=140)
+    plt.title(f'Model Distribution for {make}')
+    plt.axis('equal')  # Equal aspect ratio ensures pie is drawn as a circle.
+    plt.tight_layout()
+    plt.legend()
+    plt.show()
+
+"""# Vehicle count per make and model
+Conclusion:
+- Most vehicles are made by TESLA by a large margin followed by CHEVROLET and NISSAN.
+
+- The top models are Model Y and 3 by Tesla in a large margin followed by Leaf made by Nissan.
+"""
+
+# Set plot style
+sns.set(style="whitegrid")
+
+# Top 5 companies (makes)
+top_makes = filtered_df['Make'].value_counts().nlargest(5)
+
+# Group by both Model and Make to count unique (Model, Make) combinations
+model_make_counts = filtered_df.groupby(['Model', 'Make']).size().reset_index(name='Count')
+
+# Sort by count and get top 5
+top_models = model_make_counts.sort_values(by='Count', ascending=False).head(5)
+
+# Create label: "Model (Make)"
+top_models['Label'] = top_models['Model'] + " (" + top_models['Make'] + ")"
+
+# -------- First graph: Top 5 Companies --------
+plt.figure(figsize=(8, 6))
+sns.barplot(x=top_makes.values, y=top_makes.index, palette="viridis")
+plt.title('Top 5 Makes by Vehicle Count')
+plt.xlabel('Number of Vehicles')
+plt.ylabel('Make')
+plt.tight_layout()
+plt.show()
+
+# -------- Second graph: Top 5 Models (with Company) --------
+plt.figure(figsize=(10, 6))
+sns.barplot(x=top_models['Count'], y=top_models['Label'], palette="magma")
+plt.title('Top 5 Models (with Make) by Vehicle Count')
+plt.xlabel('Number of Vehicles')
+plt.ylabel('Model (Make)')
+plt.tight_layout()
+plt.show()
+
+"""# most popular make per county"""
+
+make_counts = filtered_df.groupby(['County', 'Make']).size().reset_index(name='Count')
+top_makes_by_county = make_counts.sort_values(['County', 'Count'], ascending=[True, False])
+top_makes_per_county = top_makes_by_county.groupby('County').first().reset_index()
+
+print("Top Companies (Makes) in Each County:")
+display(top_makes_per_county.sort_values(by="Count", ascending=False).head(10))  # Show first 10 for brevity
+
+"""# Top model per county"""
+
+model_counts = filtered_df.groupby(['County', "Make", 'Model']).size().reset_index(name='Count')
+top_models_by_county = model_counts.sort_values(['County', 'Count'], ascending=[True, False])
+top_models_per_county = top_models_by_county.groupby('County').first().reset_index()
+
+print("\nTop Models in Each County:")
+display(top_models_per_county.sort_values(by="Count", ascending=False).head(10))
+
+"""# crosstab"""
+
+import pandas as pd
+
+# Step 1: Count makes per county
+make_counts = df.groupby(['County', 'Make']).size().reset_index(name='Count')
+
+# Step 2: Get top 10 counties by total vehicle count
+top_counties = (
+    make_counts.groupby('County')['Count'].sum()
+    .nlargest(10)
+    .index
+)
+
+# Step 3: Filter to only include top counties
+filtered_counts = make_counts[make_counts['County'].isin(top_counties)]
+
+# Step 4: Get top 10 makes across the top counties
+top_makes = (
+    filtered_counts.groupby('Make')['Count'].sum()
+    .nlargest(10)
+    .index
+)
+
+# Step 5: Filter to only include top makes
+filtered_counts = filtered_counts[filtered_counts['Make'].isin(top_makes)]
+
+# Step 6: Create a crosstab (County x Make with Count as values)
+crosstab = pd.crosstab(
+    index=filtered_counts['County'],
+    columns=filtered_counts['Make'],
+    values=filtered_counts['Count'],
+    aggfunc='sum',
+    dropna=False
+).fillna(0).astype(int)
+
+# Display the crosstab
+display(crosstab)
+
+"""# Eligibility analysis"""
+
+feature = "Clean Alternative Fuel Vehicle (CAFV) Eligibility"
+
+# Ensure the feature is a properly ordered categorical variable
+df[feature] = pd.Categorical(df[feature], categories=df[feature].unique(), ordered=True)
+
+# Step 1: Get Make counts per category
+make_counts = (
+    df.groupby(feature)["Make"]
+    .value_counts()
+    .reset_index(name="Count")
+)
+
+# Step 2: Rank within each group and keep top 3
+make_counts["Rank"] = make_counts.groupby(feature)["Count"].rank(method="first", ascending=False).astype(int)
+
+top_3 = (
+    make_counts[make_counts["Rank"] <= 3]
+    .sort_values([feature, "Rank"])
+    .set_index([feature, "Rank"])
+    [["Make", "Count"]]
+)
+
+# Step 3: Calculate mean range per Make per category
+mean_range = (
+    df.groupby([feature, "Make"])["Electric Range"]
+    .mean()
+    .reset_index(name="Mean Range")
+)
+
+# Step 4: Merge with top_3
+top_3 = top_3.reset_index().merge(mean_range, on=[feature, "Make"]).set_index([feature, "Rank"])
+
+display(top_3)
+
+"""# Amount of Top 3 Make of each CAFV Eligibility
+Conclusion:
+- Most unknown eligibility are TESLA vehicles.
+- Most eligible vehicles are by Tesla
+- Most not eligible vehicles are by Jeep
+"""
+
+# Multivariate
+# Reset index so we can pivot
+top_3_reset = top_3.reset_index()
+
+# Pivot table: Rows = CAFV eligibility, Columns = Make, Values = Count
+count_pivot = top_3_reset.pivot_table(index=feature, columns="Make", values="Count", observed=False)
+
+# Plot
+ax = count_pivot.plot.bar()
+
+# Legend and labels
+ax.set_title("Count of Top 3 Makes by CAFV Eligibility")
+ax.set_ylabel("Vehicle Count")
+ax.legend(title="Make", bbox_to_anchor=(1.05, 1), loc='upper left')  # Move legend outside if needed
+ax.set_xticklabels(["Eligible", "Unknown", "Not Eligible"], rotation=0);
+
+"""# Mean of Top 3 Make of each CAFV Eligibility
+Conclusion:  
+- TESLA has the highest mean of Electric Range
+- Unknown eligibility has no known electric range.
+- Low battery not eligibility vehicles have lower electric range than eligible vehicles
+"""
+
+# Multivariate
+# Pivot table: Rows = CAFV eligibility, Columns = Make, Values = Mean Range
+mean_range_pivot = top_3_reset.pivot_table(index=feature, columns="Make", values="Mean Range", observed=False)
+
+# Plot
+ax = mean_range_pivot.plot.bar()
+
+# Legend and labels
+ax.set_title("Mean Electric Range of Top 3 Makes by CAFV Eligibility")
+ax.set_ylabel("Mean Electric Range (miles)")
+ax.legend(title="Make", bbox_to_anchor=(1.05, 1), loc='upper left')
+ax.set_xticklabels(["Eligible", "Unknown", "Not Eligible"], rotation=0);
+
+"""# Most models in each category"""
+
+feature = "Clean Alternative Fuel Vehicle (CAFV) Eligibility"
+
+# Ensure the feature is a properly ordered categorical variable
+df[feature] = pd.Categorical(df[feature], categories=df[feature].unique(), ordered=True)
+
+# Step 1: Get Make counts per category
+model_counts = (
+    df.groupby([feature, "Make"])["Model"]
+    .value_counts()
+    .reset_index(name="Count")
+)
+
+# Step 2: Rank within each group and keep top X
+max_size = 5
+model_counts["Rank"] = model_counts.groupby(feature)["Count"].rank(method="first", ascending=False).astype(int)
+
+top_df = (
+    model_counts[model_counts["Rank"] <= max_size]
+    .sort_values([feature, "Rank"])
+    .set_index([feature, "Rank"])
+    [["Make", "Model", "Count"]]
+)
+
+# Step 3: Calculate mean range per Make per category
+mean_range = (
+    df.groupby([feature, "Make", "Model"])["Electric Range"]
+    .mean()
+    .reset_index(name="Mean Range")
+)
+
+
+# Step 4: Merge with top_3
+top_df = top_df.reset_index().merge(mean_range, on=[feature, "Make", "Model"]).set_index([feature, "Rank"])
+
+display(top_df)
+
+def display_models_per_make_eligibility(category, title_category):
+  # Filter for the "Unknown" category
+  unknown_df = top_df.reset_index()
+  unknown_df = unknown_df[unknown_df[feature] == category]
+
+  # Create a label for each bar to show Make + Model
+  unknown_df["Label"] = unknown_df["Make"] + " " + unknown_df["Model"]
+
+  plt.figure(figsize=(12, 6))
+
+  # Grouped bar plot: x=Make, hue=Model
+  sns.barplot(
+      data=unknown_df,
+      x="Make",
+      y="Count",
+      hue="Model",
+      palette="tab10"
+  )
+
+  plt.title(f"Top Models per Make in CAFV Category: {title_category}")
+  plt.xlabel("Make")
+  plt.ylabel("Number of Vehicles")
+  plt.xticks(rotation=45)
+  plt.tight_layout()
+  plt.legend(title="Model")
+  plt.show()
+
+display_models_per_make_eligibility("Clean Alternative Fuel Vehicle Eligible", "Eligible")
+
+display_models_per_make_eligibility("Eligibility unknown as battery range has not been researched", "Eligibility Unkown")
+
+display_models_per_make_eligibility("Not eligible due to low battery range", "Not Eligible")
