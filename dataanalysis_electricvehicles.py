@@ -11,21 +11,20 @@ Authors: Shahar and Shlomi
 
 [Github](https://github.com/shachar700/DataAnalysis_ElectricVehicles)
 
+[Presentation](https://docs.google.com/presentation/d/16cQc9AChOSBG5RZ8JWvXcKvgd7OXHD_7hOMkyVqcmno/edit?usp=sharing)
+
 Questions:
 
-Shahar
 - Top 7 companies with total amount of vehicles
 - Top 7 models with total amount of vehicles
 - Popular companies in each county
 - Popular models in each county
 
-Shlomi
 - Vehicles per state
 - Vehicles per county
 - Vehicles per city
 - Vehicles per electric utility
 
-Later
 - Vehicles per legistrative district (handle na values) **
 - Electric Range per model (handle na values) **
 - graph Make and electric range
@@ -33,15 +32,11 @@ Later
 # Comments
 * turn dtype to categories where needed
 
-* handle missing values: use Linear Regression/KNN to predict electric range,
+* handle missing values: drop rows
 
 * split categories and turn them to binary values.
 dummies for Electric Utility and handle
 higher index to dummies
-
-authors: Shahar and Shlomi
-
-[Github](https://github.com/shachar700/DataAnalysis_ElectricVehicles)
 
 Column Name -	Description
 
@@ -125,12 +120,16 @@ display(df.isnull().sum())
 
 """## drop unused columns"""
 
+print("Shape Before", df.shape)
 df = df.drop(columns=["Base MSRP", "Vehicle Location", "DOL Vehicle ID", "2020 Census Tract"])
+print("Shape After", df.shape)
 
 """## Handle missing data"""
 
 display(df[df["County"].isna()])
+print("Shape before", df.shape)
 df = df.dropna(subset=["County"])
+print("Shape After", df.shape)
 
 """# Vehicles per state
 Conclusion: as most of the data was collected in WA the df shows they have the most vehicles (235198!), and followed by CA (but with only 112 vehicles)
@@ -385,7 +384,32 @@ top_makes_by_county = make_counts.sort_values(['County', 'Count'], ascending=[Tr
 top_makes_per_county = top_makes_by_county.groupby('County').first().reset_index()
 
 print("Top Companies (Makes) in Each County:")
-display(top_makes_per_county.sort_values(by="Count", ascending=False).head(10))  # Show first 10 for brevity
+display(top_makes_per_county.sort_values(by="Count", ascending=False).head(10))
+
+make_counts = filtered_df.groupby(['County', 'Make']).size().reset_index(name='Count')
+top_makes_by_county = make_counts.sort_values(['County', 'Count'], ascending=[True, False])
+top_makes_per_county = top_makes_by_county.groupby('County').first().reset_index()
+
+top_makes_per_county["Tesla_Lead"] = top_makes_per_county["Make"]=="TESLA"
+counts = top_makes_per_county["Tesla_Lead"].value_counts()
+plt.figure(figsize=(6, 6))
+plt.pie(counts, labels=counts.index.map({True: "Tesla Leads", False: "Other Leads"}), autopct="%1.1f%%", startangle=90)
+plt.title("Counties Where Tesla Is the Top Make")
+plt.axis("equal")  # Equal aspect ratio ensures the pie chart is a circle
+plt.show()
+
+display(top_makes_per_county[top_makes_per_county["Tesla_Lead"] == False]["County"])
+
+count_df = filtered_df[["County", "Make", "Model"]].groupby(["County","Make"]).count()
+count_df = count_df.rename(columns={"Model": "Model_Count"})
+count_df = count_df.sort_values(by=["County", "Model_Count"], ascending=[True, False])
+# display(count_df)
+
+counties = top_makes_per_county[top_makes_per_county["Make"]!="TESLA"]["County"]
+for county in counties:
+  print("County: ",county)
+  display(count_df.loc[county])
+  print("\n\n")
 
 """# Top model per county"""
 
@@ -394,9 +418,19 @@ top_models_by_county = model_counts.sort_values(['County', 'Count'], ascending=[
 top_models_per_county = top_models_by_county.groupby('County').first().reset_index()
 
 print("\nTop Models in Each County:")
-display(top_models_per_county.sort_values(by="Count", ascending=False).head(10))
+# display(top_models_per_county.sort_values(by="Count", ascending=False).head(10))
 
-"""# crosstab"""
+top_models_per_county["Model_Y_Lead"] = top_models_per_county["Model"]=="MODEL Y"
+counts = top_models_per_county["Model_Y_Lead"].value_counts()
+plt.figure(figsize=(6, 6))
+plt.pie(counts, labels=counts.index.map({True: "Model Y Lead", False: "Other Leads"}), autopct="%1.1f%%", startangle=90)
+plt.title("Counties Where Model Y Is the Top Model")
+plt.axis("equal")  # Equal aspect ratio ensures the pie chart is a circle
+plt.show()
+
+display(top_models_per_county[top_models_per_county["Model_Y_Lead"] == False])
+
+"""# Make per County (crosstab)"""
 
 import pandas as pd
 
@@ -471,7 +505,7 @@ top_3 = top_3.reset_index().merge(mean_range, on=[feature, "Make"]).set_index([f
 
 display(top_3)
 
-"""# Amount of Top 3 Make of each CAFV Eligibility
+"""# Vehicles Count of Top 3 Make for each CAFV Eligibility
 Conclusion:
 - Most unknown eligibility are TESLA vehicles.
 - Most eligible vehicles are by Tesla

@@ -1,3 +1,6 @@
 GitHub: https://github.com/shachar700/DataAnalysis_ElectricVehicles
 
 Presentation Slides: https://docs.google.com/presentation/d/16cQc9AChOSBG5RZ8JWvXcKvgd7OXHD_7hOMkyVqcmno/edit?usp=sharing
+
+Dataset:
+https://catalog.data.gov/dataset/electric-vehicle-population-data
